@@ -16,6 +16,16 @@
     - not hpc_install_cuda_toolkit
     - not hpc_install_nvidia_nccl
 
+- name: Fail if role installs mpifileutils without HPC-X MPI
+  fail:
+    msg:
+      - Building mpifileutils requires HPC-X MPI to be installed
+      - You must set the following variable true to build mpifileutils
+      - "hpc_build_openmpi_w_nvidia_gpu_support: true"
+  when:
+    - hpc_install_mpifileutils
+    - not hpc_build_openmpi_w_nvidia_gpu_support
+
 - name: Install common OpenMPI packages
   when: hpc_install_system_openmpi or hpc_build_openmpi_w_nvidia_gpu_support
   package:
@@ -44,7 +54,8 @@
         name: >-
           {{ __hpc_pmix_build_dependencies
           + __hpc_gdrcopy_build_dependencies
-          + __hpc_openmpi_build_dependencies }}
+          + __hpc_openmpi_build_dependencies
+          + __hpc_mpifileutils_build_dependencies }}
         state: present
         use: "{{ (__hpc_server_is_ostree | d(false)) |
           ternary('ansible.posix.rhel_rpm_ostree', omit) }}"
@@ -268,6 +279,63 @@
         group: root
         mode: '0755'
 
+- name: Download, build, and install mpifileutils
+  when: hpc_install_mpifileutils
+  block:
+    - name: Get stat of mpifileutils install path
+      stat:
+        path: "{{ __hpc_mpifileutils_install_dir }}/bin/dcp"
+      register: __hpc_mpifileutils_path_stat
+
+    - name: Build and install mpifileutils
+      when: not __hpc_mpifileutils_path_stat.stat.exists
+      block:
+        - name: Install mpifileutils build dependencies
+          package:
+            name: "{{ __hpc_mpifileutils_build_dependencies }}"
+            state: present
+            use: "{{ (__hpc_server_is_ostree | d(false)) |
+              ternary('ansible.posix.rhel_rpm_ostree', omit) }}"
+
+        - name: Download mpifileutils
+          include_tasks: tasks/download_extract_package.yml
+          vars:
+            __hpc_pkg_info: "{{ __hpc_mpifileutils_info }}"
+
+        - name: Create temporary build directory for mpifileutils
+          tempfile:
+            state: directory
+            prefix: mpifileutils_build_
+          register: __hpc_mpifileutils_build_dir
+
+        - name: Build mpifileutils with HPC-X MPI
+          environment:
+            PATH: "{{ __hpc_hpcx_rebuild_path }}/bin:{{ ansible_env.PATH }}"
+            LD_LIBRARY_PATH: "{{ __hpc_hpcx_rebuild_path }}/lib"
+          command:
+            cmd: "{{ item }}"
+            chdir: "{{ __hpc_mpifileutils_build_dir.path }}"
+          changed_when: true
+          loop:
+            - >-
+              cmake {{ __hpc_pkg_extracted.path }}
+              -DCMAKE_INSTALL_PREFIX={{ __hpc_mpifileutils_install_dir }}
+              -DENABLE_XATTRS=ON
+              -DENABLE_LIBARCHIVE=ON
+              -DENABLE_LUSTRE=OFF
+              -DCMAKE_BUILD_TYPE=Release
+              -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+            - make -j {{ ansible_facts["processor_nproc"] }}
+            - make install
+
+        - name: Remove mpifileutils temporary build and source directories
+          file:
+            path: "{{ item }}"
+            state: absent
+          loop:
+            - "{{ __hpc_mpifileutils_build_dir.path }}"
+            - "{{ __hpc_pkg_extracted.path }}"
+          changed_when: false
     - name: Get stat of openmpi path
       stat:
         path: "{{ __hpc_openmpi_path }}"
