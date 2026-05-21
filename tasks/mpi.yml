@@ -412,14 +412,6 @@
         group: root
         mode: '0755'
 
-    - name: Install OpenMPI no-GPU defaults helper script
-      copy:
-        src: openmpi-no-gpu-defaults.lua
-        dest: "{{ __hpc_module_dir }}/mpi/openmpi-no-gpu-defaults.lua"
-        owner: root
-        group: root
-        mode: '0644'
-
     - name: Install NVidia HPCX OpenMPI modulefile
       template:
         src: hpcx-ver.lua.j2
