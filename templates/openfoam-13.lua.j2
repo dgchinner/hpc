@@ -1,0 +1,86 @@
+{{ ansible_managed | comment(decoration="-- ") }}
+{{ "system_role:hpc" | comment(decoration="-- ", prefix="", postfix="") }}
+-- Environment module for the HPC build of OpenFOAM-{{ __hpc_openfoam_info.version }}.
+--
+-- OpenFOAM is normally set up by sourcing its etc/bashrc, which relies on bash
+-- and $BASH_SOURCE and is not usable from lmod directly. This module instead
+-- replicates the parts of that environment needed to RUN OpenFOAM, and pulls
+-- in the required MPI environment. The HPC partitioning libraries under
+-- {{ __hpc_apps_prefix }} are on LD_LIBRARY_PATH so the solvers load them at
+-- run time. This is a runtime module only; rebuilding solvers is done via
+-- "source etc/bashrc" (which reads the -devel site prefs.sh for build paths).
+
+help([[
+Loads OpenFOAM-{{ __hpc_openfoam_info.version }} (Foundation, openfoam.org),
+built against the openmpi-{{ __hpc_openmpi_info.version }}-cuda MPI and the HPC
+partitioning libraries. Provides the OpenFOAM solvers, utilities and tutorials.
+]])
+
+whatis("Name: OpenFOAM")
+whatis("Version: {{ __hpc_openfoam_info.version }}")
+whatis("Description: OpenFOAM-{{ __hpc_openfoam_info.version }} CFD toolbox (HPC build)")
+
+-- Only one OpenFOAM version at a time; auto-load the MPI it was built against.
+conflict("openfoam")
+depends_on("mpi/{{ __hpc_openmpi_info.lmod_name }}")
+
+{% set foam_dir = __hpc_openfoam_path %}
+{% set wm_options = "linux64GccDPInt32Opt" %}
+local foam_dir  = "{{ foam_dir }}"
+local wm_options = "{{ wm_options }}"
+local hpc_prefix = "{{ __hpc_apps_prefix }}"
+-- With WM_MPLIB=SYSTEMOPENMPI, OpenFOAM installs the MPI-dependent libraries
+-- (libPstream.so and the parallel decomposition libs) in a FOAM_MPI
+-- subdirectory of the lib tree.
+local foam_mpi = "openmpi-system"
+local foam_appbin = pathJoin(foam_dir, "platforms", wm_options, "bin")
+local foam_libbin = pathJoin(foam_dir, "platforms", wm_options, "lib")
+local foam_mpi_libbin = pathJoin(foam_libbin, foam_mpi)
+
+-- Core OpenFOAM project variables (mirrors etc/bashrc).
+setenv("WM_PROJECT", "OpenFOAM")
+setenv("WM_PROJECT_VERSION", "{{ __hpc_openfoam_info.version }}")
+setenv("WM_PROJECT_DIR", foam_dir)
+setenv("WM_PROJECT_INST_DIR", hpc_prefix)
+setenv("FOAM_INST_DIR", hpc_prefix)
+setenv("WM_THIRD_PARTY_DIR", pathJoin(hpc_prefix, "ThirdParty-{{ __hpc_openfoam_info.version }}"))
+
+setenv("WM_ARCH", "linux64")
+setenv("WM_ARCH_OPTION", "64")
+setenv("WM_COMPILER", "Gcc")
+setenv("WM_COMPILER_TYPE", "system")
+setenv("WM_COMPILE_OPTION", "Opt")
+setenv("WM_PRECISION_OPTION", "DP")
+setenv("WM_LABEL_SIZE", "32")
+setenv("WM_LABEL_OPTION", "Int32")
+setenv("WM_MPLIB", "SYSTEMOPENMPI")
+setenv("WM_OPTIONS", wm_options)
+
+-- OpenFOAM's parallel startup (UPstream::init) requires MPI_BUFFER_SIZE to be
+-- set; etc/config.sh/mpi normally exports it (default minimum 20000000).
+setenv("MPI_BUFFER_SIZE", "20000000")
+
+-- Per-user work area, following OpenFOAM's default layout.
+setenv("WM_PROJECT_USER_DIR",
+    pathJoin(os.getenv("HOME") or "", "OpenFOAM",
+             (os.getenv("USER") or "user") .. "-{{ __hpc_openfoam_info.version }}"))
+
+-- Installed binary/library locations.
+setenv("FOAM_MPI", foam_mpi)
+setenv("FOAM_APPBIN", foam_appbin)
+setenv("FOAM_LIBBIN", foam_libbin)
+setenv("FOAM_ETC", pathJoin(foam_dir, "etc"))
+setenv("FOAM_TUTORIALS", pathJoin(foam_dir, "tutorials"))
+
+-- Runtime search paths: OpenFOAM's own bin/lib, the wrapper scripts in
+-- foam_dir/bin, and the HPC partitioning libraries (loaded at run time by the
+-- solvers). This module sets up the runtime environment only; rebuilding
+-- solvers is a development activity handled by "source etc/bashrc", which
+-- reads the site prefs.sh from the -devel package to find the /opt/hpc libs.
+prepend_path("PATH", foam_appbin)
+prepend_path("PATH", pathJoin(foam_dir, "bin"))
+-- The MPI-dependent lib subdir (libPstream.so etc.) must come before the main
+-- lib dir so the parallel builds of these libraries are used at run time.
+prepend_path("LD_LIBRARY_PATH", foam_libbin)
+prepend_path("LD_LIBRARY_PATH", foam_mpi_libbin)
+prepend_path("LD_LIBRARY_PATH", pathJoin(hpc_prefix, "lib"))

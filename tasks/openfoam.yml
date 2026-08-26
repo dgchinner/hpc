@@ -38,3 +38,126 @@
         loop_var: __hpc_lib_name
       vars:
         __hpc_lib_pkg: "{{ __hpc_lib_packages[__hpc_lib_name] }}"
+
+    # ------------------------------------------------------------------
+    # OpenFOAM-13 itself (hpc-openfoam-13 RPM).
+    #
+    # OpenFOAM is the application built on top of the dependency libraries
+    # above. It has two source trees (OpenFOAM-13 and its companion
+    # ThirdParty-13) and builds in-tree against the openmpi-5.0.8-cuda MPI,
+    # so the build loads the MPI environment module for mpicc. Handled here
+    # rather than via the generic library task because of the second source
+    # tree and the accompanying lmod modulefile.
+    # ------------------------------------------------------------------
+    - name: Check whether hpc-openfoam-13 is already installed
+      command: rpm -q hpc-openfoam-13
+      register: __hpc_openfoam_rpm_query
+      changed_when: false
+      failed_when: false
+
+    - name: Build and install hpc-openfoam-13
+      when: __hpc_openfoam_rpm_query.rc != 0
+      block:
+        - name: Download OpenFOAM-13 source
+          include_tasks: tasks/download_extract_package.yml
+          vars:
+            __hpc_pkg_info: "{{ __hpc_openfoam_info }}"
+            __hpc_pkg_tmpdir: "{{ __hpc_apps_build_tmpdir }}"
+
+        - name: Record OpenFOAM-13 source path
+          set_fact:
+            __hpc_openfoam_srcdir: "{{ __hpc_pkg_extracted.path }}"
+
+        - name: Download ThirdParty-13 source
+          include_tasks: tasks/download_extract_package.yml
+          vars:
+            __hpc_pkg_info: "{{ __hpc_openfoam_thirdparty_info }}"
+            __hpc_pkg_tmpdir: "{{ __hpc_apps_build_tmpdir }}"
+
+        - name: Record ThirdParty-13 source path
+          set_fact:
+            __hpc_openfoam_tpsrcdir: "{{ __hpc_pkg_extracted.path }}"
+
+        - name: Create rpmbuild tree for hpc-openfoam-13
+          tempfile:
+            state: directory
+            prefix: hpc-openfoam-13_rpmbuild_
+            path: "{{ __hpc_apps_build_tmpdir }}"
+          register: __hpc_openfoam_rpmbuild
+
+        - name: Create rpmbuild subdirectories for hpc-openfoam-13
+          file:
+            path: "{{ __hpc_openfoam_rpmbuild.path }}/{{ item }}"
+            state: directory
+            mode: '0755'
+          loop:
+            - BUILD
+            - RPMS
+            - SRPMS
+            - SOURCES
+            - SPECS
+
+        - name: Copy hpc-openfoam-13 spec file
+          copy:
+            src: "{{ __hpc_apps_spec_dir }}/hpc-openfoam-13.spec"
+            dest: "{{ __hpc_openfoam_rpmbuild.path }}/SPECS/hpc-openfoam-13.spec"
+            mode: '0644'
+
+        - name: Build hpc-openfoam-13 RPM with the openmpi-5.0.8-cuda MPI module
+          shell:
+            executable: /bin/bash
+            cmd: >-
+              set -eo pipefail;
+              source /etc/profile.d/z00_lmod.sh 2>/dev/null
+              || source /etc/profile.d/modules.sh;
+              module load "mpi/{{ __hpc_openmpi_info.lmod_name }}";
+              rpmbuild -bb
+              --define "_topdir {{ __hpc_openfoam_rpmbuild.path }}"
+              --define "srcdir {{ __hpc_openfoam_srcdir }}"
+              --define "tpsrcdir {{ __hpc_openfoam_tpsrcdir }}"
+              "{{ __hpc_openfoam_rpmbuild.path }}/SPECS/hpc-openfoam-13.spec"
+          changed_when: true
+
+        - name: Find built hpc-openfoam-13 RPMs
+          find:
+            paths: "{{ __hpc_openfoam_rpmbuild.path }}/RPMS"
+            patterns: "hpc-openfoam-13*.rpm"
+            recurse: true
+          register: __hpc_openfoam_built_rpms
+
+        - name: Install built hpc-openfoam-13 RPMs
+          package:
+            name: "{{ __hpc_openfoam_built_rpms.files | map(attribute='path') | list }}"
+            state: present
+            disable_gpg_check: true
+            use: "{{ (__hpc_server_is_ostree | d(false)) |
+              ternary('ansible.posix.rhel_rpm_ostree', omit) }}"
+
+        - name: Remove hpc-openfoam-13 build artifacts
+          file:
+            path: "{{ item }}"
+            state: absent
+          loop:
+            - "{{ __hpc_openfoam_rpmbuild.path }}"
+            - "{{ __hpc_openfoam_srcdir }}"
+            - "{{ __hpc_openfoam_tpsrcdir }}"
+          changed_when: false
+
+    # Install the OpenFOAM lmod modulefile. Kept outside the build block (and
+    # its rpm-q guard) so modulefile changes deploy without a rebuild; the
+    # template/copy modules are idempotent.
+    - name: Ensure OpenFOAM modulefile directory exists
+      file:
+        path: "{{ __hpc_module_dir }}/openfoam"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Install OpenFOAM-13 modulefile
+      template:
+        src: openfoam-13.lua.j2
+        dest: "{{ __hpc_module_dir }}/openfoam/openfoam-{{ __hpc_openfoam_info.version }}.lua"
+        owner: root
+        group: root
+        mode: '0644'
