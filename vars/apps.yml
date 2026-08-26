@@ -1,0 +1,70 @@
+# SPDX-License-Identifier: MIT
+#
+# Application-layer internal variables, kept separate from base HPC
+# environment variables.
+---
+
+# Shared prefix for HPC application and library installations.
+# Follows FHS layout: bin/, lib/, include/, share/, share/man/
+__hpc_apps_prefix: /opt/hpc
+
+# Scratch directory for building the HPC applications and libraries. The
+# OpenFOAM build tree is large; /var/tmp is disk-backed, whereas /tmp is often
+# a small tmpfs (RAM) that runs out of space during the build.
+__hpc_apps_build_tmpdir: /var/tmp
+
+# --- Shared HPC libraries ---
+
+__hpc_lib_scotch_info:
+  name: scotch
+  version: "6.0.9"
+  sha256: b9bc86c50b65781eb416663e938d57555373c2517ea8b9acf680fd3acde0cb0c
+  url: https://gitlab.inria.fr/scotch/scotch/-/archive/v6.0.9/scotch-v6.0.9.tar.gz
+
+__hpc_lib_metis_info:
+  name: metis
+  version: "5.2.1"
+  sha256: 1a4665b2cd07edc2f734e30d7460afb19c1217c2547c2ac7bf6e1848d50aff7a
+  url: https://github.com/KarypisLab/METIS/archive/refs/tags/v5.2.1.tar.gz
+
+__hpc_lib_parmetis_info:
+  name: parmetis
+  version: "4.0.3"
+  sha256: d5558cd419c8d46bdc958064cb97f963d1ea793866414c025906ec15033512ed
+  url: https://github.com/KarypisLab/ParMETIS/archive/refs/tags/v4.0.3.tar.gz
+
+__hpc_lib_zoltan_info:
+  name: zoltan
+  version: "3.90"
+  sha256: 30a470af4d97cf03aa5434eb0a095f627a3a8096ecdb17f4f6b9ce58e832d28b
+  url: https://github.com/sandialabs/Zoltan/archive/refs/tags/v3.90.tar.gz
+
+# --- OpenFOAM-13 application ---
+
+__hpc_openfoam_path: "{{ __hpc_apps_prefix }}/OpenFOAM-13"
+
+__hpc_openfoam_build_dependencies:
+  - gcc
+  - gcc-c++
+  - gcc-gfortran
+  - make
+  - cmake
+  - flex
+  - bison
+  - boost-devel
+  - zlib-devel
+  - bzip2-devel
+  - rpm-build
+  - rpmdevtools
+
+__hpc_openfoam_info:
+  name: OpenFOAM-13
+  version: "13"
+  sha256: 9969d7f09411d72450855f855f2f37760ff147e3f137fd7063ce6bc26d629632
+  url: https://github.com/OpenFOAM/OpenFOAM-13/archive/version-13.tar.gz
+
+__hpc_openfoam_thirdparty_info:
+  name: ThirdParty-13
+  version: "13"
+  sha256: 05c91a450113d0f728fa37677147a30fc19f1c04ebf8d70e478db2664f2e6fd9
+  url: https://github.com/OpenFOAM/ThirdParty-13/archive/version-13.tar.gz

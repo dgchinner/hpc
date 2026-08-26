@@ -365,6 +365,26 @@ Default: `true`
 
 Type: `bool`
 
+## Variables for Controlling HPC Applications
+
+These variables control which HPC applications the role builds and installs.
+Applications are built from source as RPM packages and installed under `/opt/hpc/`.
+
+### hpc_install_openfoam
+
+Whether to build and install OpenFOAM-13 (Foundation) and its dependencies as RPM packages.
+
+OpenFOAM is an open-source CFD (Computational Fluid Dynamics) toolbox.
+The role will build and install all required dependencies as part of the installation process.
+All builds use the openmpi-5.0.8-cuda MPI environment.
+This variable requires `hpc_build_mpi_w_nvidia_gpu_support: true`.
+
+See `docs/openfoam-build.md` for the full build process documentation.
+
+Default: `true`
+
+Type: `bool`
+
 ## Variables for Configuring Tuning for HPC Workloads
 
 ### hpc_tuning

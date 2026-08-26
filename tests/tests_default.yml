@@ -28,6 +28,7 @@
     hpc_tuning: false
     hpc_sku_customisation: false
     hpc_install_kvp_client: false
+    hpc_install_openfoam: false
   tasks:
     - name: See if /dev/log exists for the fingerprint check
       ansible.builtin.stat:

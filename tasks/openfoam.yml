@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: MIT
+#
+# Tasks for building and installing OpenFOAM-13 and its dependencies
+# as RPM packages. See docs/openfoam-build.md for the full build process.
+---
+- name: Fail if OpenFOAM is requested without MPI GPU support
+  fail:
+    msg:
+      - OpenFOAM requires OpenMPI with NVIDIA GPU support to be built
+      - You must set the following variable to true
+      - "hpc_build_mpi_w_nvidia_gpu_support: true"
+  when:
+    - hpc_install_openfoam
+    - not hpc_build_mpi_w_nvidia_gpu_support

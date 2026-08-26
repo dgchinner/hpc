@@ -1490,6 +1490,10 @@
             - "{{ __hpc_diags_patch_file.path }}"
             - "{{ __hpc_pkg_extracted.path }}"
 
+- name: Build and install OpenFOAM and dependencies
+  when: hpc_install_openfoam
+  include_tasks: tasks/openfoam.yml
+
 - name: Clean dnf cache
   command: dnf clean all
   changed_when: false
