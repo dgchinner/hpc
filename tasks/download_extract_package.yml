@@ -2,11 +2,15 @@
 # This task checks sha256, downloads, and extracts, and then removes a tarball..
 # It takes __hpc_pkg_info dict with name, url, sha256 keys.
 # It sets __hpc_pkg_extracted variable with the path of the extracted tarball.
+# Optional __hpc_pkg_tmpdir selects the parent directory for the temp tree
+# (defaults to the system default, i.e. /tmp); callers with large extractions
+# can point it at a disk-backed location such as /var/tmp.
 ---
 - name: Create temp directory for extracting tarball {{ __hpc_pkg_info.name }}
   tempfile:
     state: directory
     prefix: "{{ __hpc_pkg_info.name }}_"
+    path: "{{ __hpc_pkg_tmpdir | default(omit) }}"
   register: __hpc_pkg_extracted
   changed_when: false
 
