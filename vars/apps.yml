@@ -13,6 +13,10 @@ __hpc_apps_prefix: /opt/hpc
 # a small tmpfs (RAM) that runs out of space during the build.
 __hpc_apps_build_tmpdir: /var/tmp
 
+# Directory under files/ holding the RPM spec files for the HPC
+# library and application builds.
+__hpc_apps_spec_dir: openfoam
+
 # --- Shared HPC libraries ---
 
 __hpc_lib_scotch_info:
@@ -39,7 +43,28 @@ __hpc_lib_zoltan_info:
   sha256: 30a470af4d97cf03aa5434eb0a095f627a3a8096ecdb17f4f6b9ce58e832d28b
   url: https://github.com/sandialabs/Zoltan/archive/refs/tags/v3.90.tar.gz
 
+# Registry of buildable library packages, keyed by dependency name. An
+# application declares its dependencies by name (see the *_dependencies
+# lists below); each name resolves to an entry here that describes how to
+# build the library as an RPM:
+#   rpm      - the RPM package name (used for the rpm -q idempotence check)
+#   spec     - spec file under files/{{ __hpc_apps_spec_dir }}/
+#   info     - source package dict (name, version, sha256, url)
+#   needs_mpi - whether the build must load the MPI environment module
+__hpc_lib_packages:
+  scotch:
+    rpm: hpc-scotch
+    spec: hpc-scotch.spec
+    info: "{{ __hpc_lib_scotch_info }}"
+    needs_mpi: true
+
 # --- OpenFOAM-13 application ---
+
+# Libraries that must be built and installed as RPMs before OpenFOAM-13
+# can be built. Listed in build (dependency) order; each name must resolve
+# to an entry in __hpc_lib_packages.
+__hpc_openfoam_dependencies:
+  - scotch
 
 __hpc_openfoam_path: "{{ __hpc_apps_prefix }}/OpenFOAM-13"
 

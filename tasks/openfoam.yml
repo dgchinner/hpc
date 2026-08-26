@@ -12,3 +12,29 @@
   when:
     - hpc_install_openfoam
     - not hpc_build_mpi_w_nvidia_gpu_support
+
+- name: Build and install OpenFOAM-13 and its dependency libraries
+  when: hpc_install_openfoam
+  block:
+    # Assemble the library build list from the dependency lists of every
+    # application being installed. Concatenate in application order, then
+    # dedup keeping the first occurrence so each library is built once in
+    # dependency order. Only OpenFOAM has dependencies today.
+    - name: Assemble the HPC library build list
+      set_fact:
+        __hpc_apps_build_list: "{{ __hpc_openfoam_dependencies | unique }}"
+
+    - name: Install OpenFOAM build dependencies
+      package:
+        name: "{{ __hpc_openfoam_build_dependencies }}"
+        state: present
+        use: "{{ (__hpc_server_is_ostree | d(false)) |
+          ternary('ansible.posix.rhel_rpm_ostree', omit) }}"
+
+    - name: Build and install dependency library RPMs
+      include_tasks: tasks/build_library_rpm.yml
+      loop: "{{ __hpc_apps_build_list }}"
+      loop_control:
+        loop_var: __hpc_lib_name
+      vars:
+        __hpc_lib_pkg: "{{ __hpc_lib_packages[__hpc_lib_name] }}"

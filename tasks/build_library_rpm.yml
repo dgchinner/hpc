@@ -1,0 +1,95 @@
+# SPDX-License-Identifier: MIT
+#
+# Build and install a single HPC library as an RPM package.
+#
+# Takes one registry entry from __hpc_lib_packages as __hpc_lib_pkg with keys:
+#   rpm       - RPM package name (for the rpm -q idempotence check)
+#   spec      - spec file name under files/{{ __hpc_apps_spec_dir }}/
+#   info      - source package dict (name, version, sha256, url)
+#   needs_mpi - whether to load the MPI environment module for the build
+#
+# MPI-dependent builds load the openmpi-5.0.8-cuda lmod module so that mpicc
+# and the MPI runtime libraries are found from the environment rather than
+# from a hard-coded install path.
+---
+- name: Check whether {{ __hpc_lib_pkg.rpm }} is already installed
+  command: rpm -q {{ __hpc_lib_pkg.rpm }}
+  register: __hpc_lib_rpm_query
+  changed_when: false
+  failed_when: false
+
+- name: Build and install {{ __hpc_lib_pkg.rpm }}
+  when: __hpc_lib_rpm_query.rc != 0
+  block:
+    - name: Download {{ __hpc_lib_pkg.info.name }} source
+      include_tasks: tasks/download_extract_package.yml
+      vars:
+        __hpc_pkg_info: "{{ __hpc_lib_pkg.info }}"
+        __hpc_pkg_tmpdir: "{{ __hpc_apps_build_tmpdir }}"
+
+    - name: Create rpmbuild tree for {{ __hpc_lib_pkg.rpm }}
+      tempfile:
+        state: directory
+        prefix: "{{ __hpc_lib_pkg.rpm }}_rpmbuild_"
+        path: "{{ __hpc_apps_build_tmpdir }}"
+      register: __hpc_lib_rpmbuild
+
+    - name: Create rpmbuild subdirectories for {{ __hpc_lib_pkg.rpm }}
+      file:
+        path: "{{ __hpc_lib_rpmbuild.path }}/{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - BUILD
+        - RPMS
+        - SRPMS
+        - SOURCES
+        - SPECS
+
+    - name: Copy {{ __hpc_lib_pkg.spec }} spec file
+      copy:
+        src: "{{ __hpc_apps_spec_dir }}/{{ __hpc_lib_pkg.spec }}"
+        dest: "{{ __hpc_lib_rpmbuild.path }}/SPECS/{{ __hpc_lib_pkg.spec }}"
+        mode: '0644'
+
+    - name: Build {{ __hpc_lib_pkg.rpm }} RPM
+      vars:
+        __hpc_lib_module_load: >-
+          {{ 'module load "mpi/' + __hpc_openmpi_info.lmod_name + '";'
+             if __hpc_lib_pkg.needs_mpi | bool else '' }}
+      shell:
+        executable: /bin/bash
+        cmd: >-
+          set -eo pipefail;
+          source /etc/profile.d/z00_lmod.sh 2>/dev/null
+          || source /etc/profile.d/modules.sh;
+          {{ __hpc_lib_module_load }}
+          rpmbuild -bb
+          --define "_topdir {{ __hpc_lib_rpmbuild.path }}"
+          --define "srcdir {{ __hpc_pkg_extracted.path }}"
+          "{{ __hpc_lib_rpmbuild.path }}/SPECS/{{ __hpc_lib_pkg.spec }}"
+      changed_when: true
+
+    - name: Find built {{ __hpc_lib_pkg.rpm }} RPMs
+      find:
+        paths: "{{ __hpc_lib_rpmbuild.path }}/RPMS"
+        patterns: "{{ __hpc_lib_pkg.rpm }}*.rpm"
+        recurse: true
+      register: __hpc_lib_built_rpms
+
+    - name: Install built {{ __hpc_lib_pkg.rpm }} RPMs
+      package:
+        name: "{{ __hpc_lib_built_rpms.files | map(attribute='path') | list }}"
+        state: present
+        disable_gpg_check: true
+        use: "{{ (__hpc_server_is_ostree | d(false)) |
+          ternary('ansible.posix.rhel_rpm_ostree', omit) }}"
+
+    - name: Remove {{ __hpc_lib_pkg.rpm }} build artifacts
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ __hpc_lib_rpmbuild.path }}"
+        - "{{ __hpc_pkg_extracted.path }}"
+      changed_when: false
