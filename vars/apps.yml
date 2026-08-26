@@ -81,6 +81,11 @@ __hpc_lib_packages:
     spec: hpc-parmetis.spec
     info: "{{ __hpc_lib_parmetis_info }}"
     needs_mpi: true
+  zoltan:
+    rpm: hpc-zoltan
+    spec: hpc-zoltan.spec
+    info: "{{ __hpc_lib_zoltan_info }}"
+    needs_mpi: true
 
 # --- OpenFOAM-13 application ---
 
@@ -92,6 +97,7 @@ __hpc_openfoam_dependencies:
   - scotch
   - metis
   - parmetis
+  - zoltan
 
 __hpc_openfoam_path: "{{ __hpc_apps_prefix }}/OpenFOAM-13"
 
@@ -108,6 +114,7 @@ __hpc_openfoam_build_dependencies:
   - bzip2-devel
   - rpm-build
   - rpmdevtools
+  - perl
 
 __hpc_openfoam_info:
   name: OpenFOAM-13
