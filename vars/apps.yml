@@ -43,8 +43,8 @@ __hpc_lib_metis_info:
 __hpc_lib_parmetis_info:
   name: parmetis
   version: "4.0.3"
-  sha256: d5558cd419c8d46bdc958064cb97f963d1ea793866414c025906ec15033512ed
-  url: https://github.com/KarypisLab/ParMETIS/archive/refs/tags/v4.0.3.tar.gz
+  sha256: f2d9a231b7cf97f1fee6e8c9663113ebf6c240d407d3c118c55b3633d6be6e5f
+  url: https://karypis.github.io/glaros/files/sw/parmetis/parmetis-4.0.3.tar.gz
 
 __hpc_lib_zoltan_info:
   name: zoltan
@@ -76,6 +76,11 @@ __hpc_lib_packages:
     spec: hpc-metis.spec
     info: "{{ __hpc_lib_metis_info }}"
     needs_mpi: false
+  parmetis:
+    rpm: hpc-parmetis
+    spec: hpc-parmetis.spec
+    info: "{{ __hpc_lib_parmetis_info }}"
+    needs_mpi: true
 
 # --- OpenFOAM-13 application ---
 
@@ -86,6 +91,7 @@ __hpc_openfoam_dependencies:
   - gklib
   - scotch
   - metis
+  - parmetis
 
 __hpc_openfoam_path: "{{ __hpc_apps_prefix }}/OpenFOAM-13"
 
