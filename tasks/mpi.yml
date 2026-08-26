@@ -352,7 +352,7 @@
     - name: Install PMIx modulefile
       template:
         src: pmix-ver.lua.j2
-        dest: "{{ __hpc_module_dir }}/pmix/pmix-{{ __hpc_pmix_info.version }}.lua"
+        dest: "{{ __hpc_module_dir }}/pmix/{{ __hpc_pmix_info.lmod_name }}.lua"
         owner: root
         group: root
         mode: '0755'
@@ -360,8 +360,7 @@
     - name: Install NVidia HPCX OpenMPI modulefile
       template:
         src: hpcx-ver.lua.j2
-        dest: >-
-          {{ __hpc_module_dir }}/mpi/hpcx-{{ __hpc_hpcx_info.version }}.lua
+        dest: "{{ __hpc_module_dir }}/mpi/{{ __hpc_hpcx_info.lmod_name }}.lua"
         owner: root
         group: root
         mode: '0755'
@@ -370,8 +369,8 @@
       template:
         src: hpcx-ver-pmix-ver.lua.j2
         dest: >-
-          {{ __hpc_module_dir }}/mpi/hpcx-{{
-          __hpc_hpcx_info.version }}-pmix-{{ __hpc_pmix_info.version }}.lua
+          {{ __hpc_module_dir }}/mpi/{{
+          __hpc_hpcx_info.lmod_name }}-pmix-{{ __hpc_pmix_info.version }}.lua
         owner: root
         group: root
         mode: '0755'
@@ -379,7 +378,7 @@
     - name: Install OpenMPI modulefile
       template:
         src: openmpi-ver-cuda12-gpu.lua.j2
-        dest: "{{ __hpc_module_dir }}/mpi/openmpi-{{ __hpc_openmpi_info.version }}-cuda12-gpu.lua"
+        dest: "{{ __hpc_module_dir }}/mpi/{{ __hpc_openmpi_info.lmod_name }}.lua"
         owner: root
         group: root
         mode: '0755'
@@ -398,7 +397,7 @@
     - name: Install MVAPICH modulefile
       template:
         src: mvapich-ver.lua.j2
-        dest: "{{ __hpc_module_dir }}/mpi/mvapich-{{ __hpc_mvapich_info.version }}.lua"
+        dest: "{{ __hpc_module_dir }}/mpi/{{ __hpc_mvapich_info.lmod_name }}.lua"
         owner: root
         group: root
         mode: '0755'

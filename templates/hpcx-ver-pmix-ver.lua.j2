@@ -13,7 +13,7 @@ whatis("Version: {{ __hpc_hpcx_info.version }}")
 prepend_path("MODULEPATH", "{{__hpc_hpcx_path }}/modulefiles")
 
 -- dependent on PMIx {{ __hpc_pmix_info.version }} installed in /opt
-load("{{ __hpc_pmix_info.name }}/{{ __hpc_pmix_info.name }}-{{ __hpc_pmix_info.version }}")
+load("{{ __hpc_pmix_info.name }}/{{ __hpc_pmix_info.lmod_name }}")
 
 -- Pull in the HPCX module
 load("hpcx-rebuild")
