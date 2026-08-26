@@ -71,6 +71,11 @@ __hpc_lib_packages:
     spec: hpc-scotch.spec
     info: "{{ __hpc_lib_scotch_info }}"
     needs_mpi: true
+  metis:
+    rpm: hpc-metis
+    spec: hpc-metis.spec
+    info: "{{ __hpc_lib_metis_info }}"
+    needs_mpi: false
 
 # --- OpenFOAM-13 application ---
 
@@ -80,6 +85,7 @@ __hpc_lib_packages:
 __hpc_openfoam_dependencies:
   - gklib
   - scotch
+  - metis
 
 __hpc_openfoam_path: "{{ __hpc_apps_prefix }}/OpenFOAM-13"
 
